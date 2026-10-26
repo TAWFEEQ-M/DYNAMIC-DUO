@@ -7,7 +7,8 @@ MoneyWise AI is a responsive, browser-only personal finance dashboard for unders
 ## Team
 
 - **Team name:** DYNAMIC-DUO
-- **Team members:** [TEAM INPUT REQUIRED: add each member's name]
+- **Team members:** TAWFEEQ.M-250071601122
+-                   NABHAN-250071601108
 
 ## Theme and Challenge
 
@@ -28,11 +29,6 @@ The opening sign-in screen is local profile selection, not real authentication. 
 
 The Statement import portal reads text-based PDFs in the browser with PDF.js 5.4.624. The pinned PDF.js module and worker are loaded from jsDelivr on first PDF import; an internet connection is needed for that step. The selected PDF bytes and extracted text are passed to the local PDF.js worker and are not uploaded by this app. PDF parsing is not perfectly reliable: scanned/image-only files, password-protected PDFs, bank-specific layouts, ambiguous rows, and formats with multiple amount columns may not be imported. The parser skips ambiguous monetary rows, proposes rule-based categories, and requires the user to review editable rows before import. It skips exact date/type/amount/description matches already in the active profile. Always compare the preview with the original bank statement; the original PDF is not retained by the app.
 
-### Google Pay limitation
-
-There is no real-time Google Pay transaction sync in this project. A static GitHub Pages website cannot inspect activity in another phone app, read payment notifications, or subscribe to a user's UPI transactions. Do not provide Google Pay, bank, UPI PIN, or account credentials to this demo. A genuine automated integration would need an officially supported, user-consented transaction data provider and a secure backend (or a separate, reviewed native Android integration); it cannot be safely implemented as browser-only JavaScript. Until such an integration is designed and authorized, add payments through the app's transaction form. Do not describe manual entries as automatic sync.
-
-This is a budgeting and educational prototype, not financial, tax, or investment advice. Cash flow calculated by the app is not a bank balance.
 
 ## Features
 
