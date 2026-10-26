@@ -1,0 +1,116 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#101a26">
+  <meta name="description" content="MoneyWise AI is a private, browser-based personal finance dashboard for understanding your money.">
+  <title>MoneyWise AI | Personal finance, made clearer</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+  <script src="app.js" defer></script>
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="sidebar" id="sidebar">
+      <a class="brand" href="#dashboard" aria-label="MoneyWise AI home">
+        <span class="brand-mark" aria-hidden="true"><svg viewBox="0 0 32 32"><path d="M6 22.5 13.2 15l5.2 5.1L26 11"/><path d="M19.4 11H26v6.6"/></svg></span>
+        <span class="brand-copy"><strong>moneywise<span>AI</span></strong><small>PERSONAL FINANCE</small></span>
+      </a>
+      <div class="nav-label">WORKSPACE</div>
+      <nav class="main-nav" aria-label="Main navigation">
+        <button class="nav-link active" data-view="dashboard"><span class="nav-icon">◫</span>Overview</button>
+        <button class="nav-link" data-view="transactions"><span class="nav-icon">⇄</span>Transactions</button>
+        <button class="nav-link" data-view="analytics"><span class="nav-icon">▥</span>Analytics</button>
+        <button class="nav-link" data-view="budgets"><span class="nav-icon">◎</span>Budgets</button>
+        <button class="nav-link" data-view="goals"><span class="nav-icon">◇</span>Savings goals</button>
+        <button class="nav-link" data-view="coach"><span class="nav-icon">✳</span>Money coach <span class="nav-new">RULES</span></button>
+      </nav>
+      <div class="sidebar-bottom">
+        <div class="privacy-card"><span class="privacy-icon">⌑</span><div><strong>Your data stays yours</strong><p>Saved only in this browser. Never synced.</p></div></div>
+        <div class="sidebar-event"><span class="event-dot"></span><span>CODECANVAS 2K26</span><span class="event-sep">·</span><span>MONEYMATTERS</span></div>
+        <div class="profile-button"><span class="avatar">D</span><span class="profile-name"><strong>Demo workspace</strong><small>Sample data loaded</small></span></div>
+      </div>
+    </aside>
+
+    <main class="main-area">
+      <header class="topbar">
+        <button class="icon-button mobile-menu" id="mobile-menu" aria-label="Open navigation" title="Open navigation">☰</button>
+        <div class="breadcrumbs"><span>Workspace</span><b>/</b><strong id="page-breadcrumb">Overview</strong></div>
+        <div class="topbar-actions"><span class="local-indicator"><i></i> Local mode</span><button class="button button-primary button-small" id="quick-add"><span>＋</span> Add transaction</button></div>
+      </header>
+
+      <div class="content-wrap">
+        <section class="view active" id="view-dashboard" aria-labelledby="dashboard-title">
+          <div class="page-heading">
+            <div><div class="eyebrow">MONDAY, <span id="today-date"></span><span class="heading-divider">/</span> MONTHLY SNAPSHOT</div><h1 id="dashboard-title">Your money, <em>in focus.</em></h1><p>A clearer view of what came in, what went out, and what's next.</p></div>
+            <div class="heading-tools"><label class="select-wrap"><span class="sr-only">Choose month</span><select id="month-picker" aria-label="Choose month"></select><span>⌄</span></label><span class="sample-pill" id="sample-badge">DEMO DATA</span><button class="text-button reset-sample-button" id="reset-demo" type="button">Reset demo</button></div>
+          </div>
+
+          <div class="metric-grid">
+            <article class="metric-card metric-income"><div class="metric-top"><span>Monthly income</span><span class="metric-glyph">↙</span></div><strong class="metric-value" id="monthly-income">₹0</strong><div class="metric-foot"><span class="metric-note">All income this month</span><span class="metric-tag green" id="income-count">0 entries</span></div></article>
+            <article class="metric-card"><div class="metric-top"><span>Monthly expenses</span><span class="metric-glyph expense-glyph">↗</span></div><strong class="metric-value" id="monthly-expenses">₹0</strong><div class="metric-foot"><span class="metric-note">All spending this month</span><span class="metric-tag coral" id="expense-count">0 entries</span></div></article>
+            <article class="metric-card metric-cash"><div class="metric-top"><span>Available cash flow</span><span class="metric-glyph">≈</span></div><strong class="metric-value" id="cash-flow">₹0</strong><div class="metric-foot"><span class="metric-note">Income minus expenses</span><span class="metric-tag" id="cash-tag">This month</span></div></article>
+            <article class="metric-card"><div class="metric-top"><span>Savings rate</span><span class="metric-glyph">↗</span></div><strong class="metric-value" id="savings-rate">0%</strong><div class="metric-foot"><span class="metric-note">Cash flow ÷ income</span><span class="metric-tag green" id="rate-tag">On track</span></div></article>
+          </div>
+
+          <div class="dashboard-grid">
+            <article class="panel trend-panel"><div class="panel-heading"><div><div class="panel-kicker">CASH FLOW</div><h2>Income vs. expenses</h2></div><span class="period-label">LAST 6 MONTHS</span></div><div class="chart-legend"><span><i class="legend-dot legend-income"></i>Income</span><span><i class="legend-dot legend-expense"></i>Expenses</span></div><div class="chart-wrap"><canvas id="cashflow-chart" aria-label="Income and expenses over the last six months" role="img"></canvas></div></article>
+            <article class="panel budget-panel"><div class="panel-heading"><div><div class="panel-kicker">SPENDING PLAN</div><h2>Budget check-in</h2></div><button class="text-button" data-navigate="budgets">See budgets <span>→</span></button></div><div id="budget-preview" class="budget-preview"></div></article>
+            <article class="panel transactions-panel"><div class="panel-heading"><div><div class="panel-kicker">THE LATEST</div><h2>Recent transactions</h2></div><button class="text-button" data-navigate="transactions">All transactions <span>→</span></button></div><div class="transaction-list" id="recent-transactions"></div></article>
+            <article class="panel category-panel"><div class="panel-heading"><div><div class="panel-kicker">WHERE IT GOES</div><h2>Spending breakdown</h2></div><button class="text-button" data-navigate="analytics">Details <span>→</span></button></div><div class="category-content"><div class="donut-wrap"><canvas id="category-chart" aria-label="Expense categories for selected month" role="img"></canvas><div class="donut-center"><strong id="category-total">₹0</strong><span>SPENT</span></div></div><div class="category-legend" id="category-legend"></div></div></article>
+          </div>
+
+          <section class="insight-strip"><div class="insight-symbol">✳</div><div><span class="panel-kicker">A SMALL OBSERVATION</span><p id="dashboard-insight">Your monthly money story will take shape here as you add transactions.</p></div><button class="text-button" data-navigate="coach">Ask Money Coach <span>→</span></button></section>
+          <footer class="page-footer"><span>MoneyWise AI <b>·</b> CodeCanvas 2K26</span><span>Private by design. No bank connections.</span></footer>
+        </section>
+
+        <section class="view" id="view-transactions" aria-labelledby="transactions-title" hidden>
+          <div class="page-heading compact-heading"><div><div class="eyebrow">YOUR MONEY, LINE BY LINE</div><h1 id="transactions-title">Transactions</h1><p>Keep every rupee accounted for.</p></div><div class="heading-tools"><button class="button button-outline" id="export-csv">↧ <span>Export CSV</span></button><button class="button button-primary" data-open-dialog="transaction-dialog">＋ <span>New transaction</span></button></div></div>
+          <div class="table-toolbar"><label class="search-box"><span>⌕</span><input id="transaction-search" type="search" placeholder="Search description or category" autocomplete="off"></label><label class="filter-select"><span class="sr-only">Filter type</span><select id="type-filter"><option value="all">All types</option><option value="expense">Expenses</option><option value="income">Income</option></select></label><label class="filter-select"><span class="sr-only">Filter category</span><select id="category-filter"><option value="all">All categories</option></select></label><label class="filter-select"><span class="sr-only">Sort transactions</span><select id="sort-transactions"><option value="date-desc">Newest first</option><option value="date-asc">Oldest first</option><option value="amount-desc">Highest amount</option><option value="amount-asc">Lowest amount</option></select></label></div>
+          <div class="panel table-panel"><div class="table-meta"><span id="transaction-result-count">0 transactions</span><span>Amounts in Indian rupees</span></div><div class="table-scroll"><table><thead><tr><th>Description</th><th>Category</th><th>Date</th><th>Type</th><th class="align-right">Amount</th><th><span class="sr-only">Actions</span></th></tr></thead><tbody id="transactions-table"></tbody></table></div><div id="transactions-empty" class="empty-state" hidden><span>↗</span><strong>No transactions found</strong><p>Try adjusting your search, or add a transaction to get started.</p><button class="button button-primary button-small" data-open-dialog="transaction-dialog">＋ Add transaction</button></div></div>
+          <div class="data-note"><span>⌑</span> Your entries are stored on this device only. Use CSV export to keep your own backup.</div>
+        </section>
+
+        <section class="view" id="view-analytics" aria-labelledby="analytics-title" hidden>
+          <div class="page-heading compact-heading"><div><div class="eyebrow">PATTERNS, NOT GUESSES</div><h1 id="analytics-title">Analytics</h1><p>Every chart reflects your transaction records.</p></div><label class="select-wrap"><span class="sr-only">Choose analytics month</span><select class="sync-month" aria-label="Choose analytics month"></select><span>⌄</span></label></div>
+          <div class="analytics-grid"><article class="panel analytics-wide"><div class="panel-heading"><div><div class="panel-kicker">SIX-MONTH VIEW</div><h2>Income &amp; expenses</h2></div></div><div class="chart-legend"><span><i class="legend-dot legend-income"></i>Income</span><span><i class="legend-dot legend-expense"></i>Expenses</span></div><div class="large-chart"><canvas id="analytics-flow" aria-label="Six-month income and expense comparison" role="img"></canvas></div></article>
+          <article class="panel"><div class="panel-heading"><div><div class="panel-kicker">THIS MONTH</div><h2>Expense categories</h2></div></div><div class="analytics-donut"><canvas id="analytics-donut" aria-label="Current expense breakdown by category" role="img"></canvas><div class="donut-center"><strong id="analytics-category-total">₹0</strong><span>SPENT</span></div></div><div id="analytics-category-list" class="rank-list"></div></article>
+          <article class="panel analytics-wide"><div class="panel-heading"><div><div class="panel-kicker">BIGGEST OUTGOINGS</div><h2>Where spending adds up</h2></div><span class="period-label">SELECTED MONTH</span></div><div id="largest-categories" class="largest-list"></div></article></div>
+          <div class="data-note"><span>i</span> Monthly totals use the selected calendar month. Trend charts include the six months ending there.</div>
+        </section>
+
+        <section class="view" id="view-budgets" aria-labelledby="budgets-title" hidden>
+          <div class="page-heading compact-heading"><div><div class="eyebrow">GIVE YOUR MONEY A PLAN</div><h1 id="budgets-title">Budgets</h1><p>Set a monthly limit, then spend with intention.</p></div><button class="button button-primary" data-open-dialog="budget-dialog">＋ <span>Create budget</span></button></div>
+          <div class="budget-summary" id="budget-summary"></div><div class="section-title-row"><div><span class="panel-kicker">MONTHLY ENVELOPES</span><h2>Your category budgets</h2></div><label class="select-wrap"><span class="sr-only">Choose budget month</span><select class="sync-month" aria-label="Choose budget month"></select><span>⌄</span></label></div><div class="budget-grid" id="budget-grid"></div>
+          <div class="data-note"><span>i</span> Spending is matched to the budget category in the selected month. Budgets are not income or savings records.</div>
+        </section>
+
+        <section class="view" id="view-goals" aria-labelledby="goals-title" hidden>
+          <div class="page-heading compact-heading"><div><div class="eyebrow">MAKE ROOM FOR WHAT MATTERS</div><h1 id="goals-title">Savings goals</h1><p>Small, steady steps toward something bigger.</p></div><button class="button button-primary" data-open-dialog="goal-dialog">＋ <span>New savings goal</span></button></div>
+          <div class="goal-banner"><div class="goal-banner-icon">◇</div><div><span>YOUR GOALS, YOUR PACE</span><p id="goal-summary-text">Add a goal to give your savings a direction.</p></div><div class="goal-banner-total"><span>TOTAL SAVED</span><strong id="total-goal-saved">₹0</strong></div></div>
+          <div class="section-title-row"><div><span class="panel-kicker">THE LONG GAME</span><h2>Goals in progress</h2></div></div><div class="goals-grid" id="goals-grid"></div>
+          <div class="data-note"><span>i</span> Contributions are tracked within goals, not added to expense transactions, so savings are never double-counted.</div>
+        </section>
+
+        <section class="view" id="view-coach" aria-labelledby="coach-title" hidden>
+          <div class="page-heading compact-heading"><div><div class="eyebrow">A CLEAR-HEADED SECOND OPINION</div><h1 id="coach-title">Money Coach</h1><p>Practical guidance based on your actual records.</p></div><label class="select-wrap"><span class="sr-only">Choose coach month</span><select class="sync-month" aria-label="Choose coach month"></select><span>⌄</span></label></div>
+          <div class="coach-banner"><div class="coach-spark">✳</div><div><span>RULE-BASED FINANCIAL COACHING</span><p>No AI service or bank connection is used. Suggestions are generated locally from your transactions and budgets.</p></div></div><div class="coach-score-row"><div><span class="panel-kicker">YOUR MONTHLY CHECK-IN</span><h2 id="coach-headline">Let's find your next small win.</h2></div><span class="coach-status" id="coach-status">IN YOUR CONTROL</span></div><div id="coach-insights" class="coach-insights"></div><div class="coach-disclaimer">MoneyWise provides general educational information, not regulated financial, tax, or investment advice. Your data never leaves this browser.</div>
+        </section>
+      </div>
+    </main>
+  </div>
+  <div class="mobile-scrim" id="mobile-scrim"></div>
+  <div class="toast-region" id="toast-region" aria-live="polite" aria-atomic="true"></div>
+
+  <dialog class="app-dialog" id="transaction-dialog"><form id="transaction-form" novalidate><div class="dialog-heading"><div><span class="panel-kicker">MONEY IN OR OUT</span><h2 id="transaction-dialog-title">Add transaction</h2></div><button type="button" class="dialog-close" data-close-dialog aria-label="Close dialog">×</button></div><input type="hidden" id="transaction-id"><div class="form-grid"><label class="field full-field">Description<input id="transaction-description" name="description" maxlength="70" required placeholder="e.g. Monthly salary"></label><label class="field">Amount (₹)<input id="transaction-amount" name="amount" type="number" min="0.01" max="100000000" step="0.01" required placeholder="0.00" inputmode="decimal"></label><label class="field">Type<select id="transaction-type" name="type"><option value="expense">Expense</option><option value="income">Income</option></select></label><label class="field">Category<select id="transaction-category" name="category" required></select></label><label class="field">Date<input id="transaction-date" name="date" type="date" required></label></div><p class="form-error" id="transaction-error" role="alert"></p><div class="dialog-actions"><button type="button" class="button button-outline" data-close-dialog>Cancel</button><button class="button button-primary" type="submit">Save transaction</button></div></form></dialog>
+
+  <dialog class="app-dialog" id="budget-dialog"><form id="budget-form" novalidate><div class="dialog-heading"><div><span class="panel-kicker">MONTHLY SPENDING LIMIT</span><h2 id="budget-dialog-title">Create budget</h2></div><button type="button" class="dialog-close" data-close-dialog aria-label="Close dialog">×</button></div><input type="hidden" id="budget-id"><div class="form-grid"><label class="field full-field">Category<select id="budget-category" required></select></label><label class="field full-field">Monthly limit (₹)<input id="budget-amount" type="number" min="0.01" max="100000000" step="0.01" required placeholder="0.00" inputmode="decimal"></label></div><p class="form-error" id="budget-error" role="alert"></p><div class="dialog-actions"><button type="button" class="button button-outline" data-close-dialog>Cancel</button><button class="button button-primary" type="submit">Save budget</button></div></form></dialog>
+
+  <dialog class="app-dialog" id="goal-dialog"><form id="goal-form" novalidate><div class="dialog-heading"><div><span class="panel-kicker">SAVING WITH PURPOSE</span><h2 id="goal-dialog-title">Create savings goal</h2></div><button type="button" class="dialog-close" data-close-dialog aria-label="Close dialog">×</button></div><input type="hidden" id="goal-id"><div class="form-grid"><label class="field full-field">Goal name<input id="goal-name" maxlength="55" required placeholder="e.g. A little more freedom"></label><label class="field">Target amount (₹)<input id="goal-target" type="number" min="0.01" max="100000000" step="0.01" required placeholder="0.00" inputmode="decimal"></label><label class="field">Deadline<input id="goal-deadline" type="date" required></label></div><p class="form-error" id="goal-error" role="alert"></p><div class="dialog-actions"><button type="button" class="button button-outline" data-close-dialog>Cancel</button><button class="button button-primary" type="submit">Save goal</button></div></form></dialog>
+
+  <dialog class="app-dialog small-dialog" id="contribution-dialog"><form id="contribution-form" novalidate><div class="dialog-heading"><div><span class="panel-kicker">A STEP FORWARD</span><h2>Add contribution</h2></div><button type="button" class="dialog-close" data-close-dialog aria-label="Close dialog">×</button></div><input type="hidden" id="contribution-goal-id"><p id="contribution-goal-label" class="contribution-label"></p><label class="field">Contribution amount (₹)<input id="contribution-amount" type="number" min="0.01" max="100000000" step="0.01" required placeholder="0.00" inputmode="decimal"></label><label class="field">Date<input id="contribution-date" type="date" required></label><p class="form-error" id="contribution-error" role="alert"></p><div class="dialog-actions"><button type="button" class="button button-outline" data-close-dialog>Cancel</button><button class="button button-primary" type="submit">Add contribution</button></div></form></dialog>
+</body>
+</html>
