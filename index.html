@@ -13,7 +13,45 @@
   <script src="app.js" defer></script>
 </head>
 <body>
-  <div class="app-shell">
+  <main class="login-screen" id="login-screen">
+    <div class="login-topline">
+      <a class="brand login-brand" href="#login" aria-label="MoneyWise AI sign in">
+        <span class="brand-mark" aria-hidden="true"><svg viewBox="0 0 32 32"><path d="M6 22.5 13.2 15l5.2 5.1L26 11"/><path d="M19.4 11H26v6.6"/></svg></span>
+        <span class="brand-copy"><strong>moneywise<span>AI</span></strong><small>PERSONAL FINANCE</small></span>
+      </a>
+      <span class="login-event" aria-label="CodeCanvas 2K26"><i></i><span>CODECANVAS 2K26</span></span>
+    </div>
+    <div class="login-layout">
+      <section class="login-intro" aria-labelledby="login-title">
+        <div class="eyebrow">MONEYMATTERS · MAKE MONEY MAKE SENSE</div>
+        <h1 id="login-title">Money feels<br><em>clearer from here.</em></h1>
+        <p>One thoughtful place to see what comes in, what goes out, and what you are building toward.</p>
+        <div class="login-visual" aria-hidden="true">
+          <div class="visual-topline"><span>YOUR MONTH, IN BALANCE</span><span class="visual-live"><i></i> SAMPLE PREVIEW</span></div>
+          <div class="visual-chart">
+            <div class="visual-axis"><span>₹80k</span><span>₹40k</span><span>₹0</span></div>
+            <div class="visual-gridlines"><i></i><i></i><i></i></div>
+            <div class="visual-bars"><div><i style="height:79%"></i><b style="height:34%"></b><span>JUN</span></div><div><i style="height:79%"></i><b style="height:49%"></b><span>JUL</span></div><div><i style="height:82%"></i><b style="height:31%"></b><span>AUG</span></div><div><i style="height:86%"></i><b style="height:45%"></b><span>SEP</span></div><div><i style="height:88%"></i><b style="height:58%"></b><span>OCT</span></div></div>
+          </div>
+          <div class="visual-legend"><span><i class="legend-dot legend-income"></i>Income</span><span><i class="legend-dot legend-expense"></i>Expenses</span><span class="visual-note">Illustrative only · no account data</span></div>
+        </div>
+        <div class="login-privacy"><span>⌑</span><p><strong>Private by design.</strong> Your entries stay in this browser and are never synced.</p></div>
+      </section>
+      <section class="login-panel" aria-labelledby="signin-heading">
+        <div class="login-form-heading"><span class="panel-kicker">YOUR PERSONAL MONEY SPACE</span><h2 id="signin-heading">Welcome back.</h2><p>Enter an email to open the local demo workspace.</p></div>
+        <form id="login-form" novalidate>
+          <label class="field login-email-field" for="login-email">Email address<input id="login-email" name="email" type="email" autocomplete="email" maxlength="254" required placeholder="you@example.com"></label>
+          <p class="form-error login-error" id="login-error" role="alert"></p>
+          <button class="button button-primary login-submit" type="submit">Continue to dashboard <span>→</span></button>
+        </form>
+        <div class="login-demo-note"><span>DEMO ACCESS</span><p>This is a local demo gate, not account authentication. No password is requested, and your email is not saved or sent anywhere.</p></div>
+        <div class="login-footnote"><span>NO BANK CONNECTION</span><i></i><span>NO PASSWORDS</span><i></i><span>NO CLOUD SYNC</span></div>
+      </section>
+    </div>
+    <footer class="login-footer"><span>MoneyWise AI <b>·</b> CodeCanvas 2K26</span><span>Built for MONEYMATTERS</span></footer>
+  </main>
+
+  <div class="app-shell" hidden>
     <aside class="sidebar" id="sidebar">
       <a class="brand" href="#dashboard" aria-label="MoneyWise AI home">
         <span class="brand-mark" aria-hidden="true"><svg viewBox="0 0 32 32"><path d="M6 22.5 13.2 15l5.2 5.1L26 11"/><path d="M19.4 11H26v6.6"/></svg></span>
@@ -39,7 +77,7 @@
       <header class="topbar">
         <button class="icon-button mobile-menu" id="mobile-menu" aria-label="Open navigation" title="Open navigation">☰</button>
         <div class="breadcrumbs"><span>Workspace</span><b>/</b><strong id="page-breadcrumb">Overview</strong></div>
-        <div class="topbar-actions"><span class="local-indicator"><i></i> Local mode</span><button class="button button-primary button-small" id="quick-add"><span>＋</span> Add transaction</button></div>
+        <div class="topbar-actions"><span class="local-indicator"><i></i> Local mode</span><button class="button button-primary button-small" id="quick-add"><span>＋</span> Add transaction</button><button class="sign-out-button" id="sign-out" type="button" title="Sign out of this demo tab">Exit</button></div>
       </header>
 
       <div class="content-wrap">

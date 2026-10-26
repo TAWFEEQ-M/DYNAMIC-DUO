@@ -22,6 +22,8 @@ People often have transaction records but lack a simple, understandable view of 
 
 MoneyWise AI turns manually entered transactions into a monthly dashboard, expense analytics, category budgets, savings-goal progress, and practical rule-based observations. The app does not connect to banks and does not call an AI service. All records are stored in the current browser's local storage and are not synchronized between devices. A sample dataset makes the first visit demonstrable; users can edit it or restore the original demo explicitly.
 
+The opening sign-in screen is a transparent demo gate, not real authentication. It accepts a valid email format to continue, requests no password, sends no request, and discards the email immediately. A tab-scoped session marker keeps the demo open across refresh in that tab; it is not an identity or security control. Sign out clears that marker and does not delete finance data.
+
 This is a budgeting and educational prototype, not financial, tax, or investment advice. Cash flow calculated by the app is not a bank balance.
 
 ## Features
@@ -53,6 +55,7 @@ The application is deliberately small and static:
 - `index.html` contains the root page, views, accessible forms, and dialogs.
 - `styles.css` provides the responsive visual system and layouts.
 - `app.js` owns data validation, sample data, local persistence, calculations, view rendering, Canvas charts, CSV export, and rule-based coaching.
+- The sign-in screen is email-format validation plus a `sessionStorage` demo gate. It provides no account verification or access control. The login illustration is sample artwork, not account data.
 
 The state is stored under the browser key `moneywise-ai-v1` as transactions, category budgets, savings goals and their contributions, and a sample-data flag. Stored records are normalized before use. If saved JSON is malformed, the app avoids replacing it automatically and starts a temporary empty session with a visible warning. Browser storage can be cleared by the user or browser, is local to one browser profile/device, and is not encrypted or synchronized. Do not enter sensitive credentials or treat this prototype as a secure financial record system.
 
@@ -100,6 +103,7 @@ Then visit `http://localhost:8000`. (Any equivalent static file server also work
 
 - **Automated source check:** `node --check app.js` completed without syntax errors. VS Code diagnostics reported no errors in the generated HTML, CSS, or JavaScript.
 - **Browser-driven checks:** The app was opened from the repository root in the integrated Chromium browser. Verified transaction creation, editing, and deletion by record ID; text, type, and category filtering; amount sorting; September monthly totals (₹68,000 income and ₹17,120 expenses); CSV Blob contents (header and edited transaction present); budget creation, editing, and deletion; ₹750 actual spending against ₹500/₹700 limits; the matching ₹50 Money Coach over-budget suggestion; goal creation, editing, deletion, contribution, and rejection of a contribution above the remaining target; and persistence after refresh. Verified goal contributions did not create transaction records. Verified explicit demo reset restored the 23-record dataset, malformed stored JSON was left unchanged with a visible storage warning, and user-entered HTML-like goal text created no HTML elements in Money Coach. Charts rendered at desktop dimensions, and document width did not exceed the 320px or 360px viewport.
+- **Login browser checks:** Verified the initial signed-out screen, rejection of invalid email, acceptance of a valid email without storing it, tab-session persistence after refresh, sign-out returning to the login screen without deleting finance data, and no horizontal overflow at a 360px mobile viewport. Desktop split layout was inspected at 1365px. This gate is for the demo experience only and is not security authentication.
 - **Manual checks still outstanding:** Repeat the full interaction flow in the browsers/devices used for judging, verify a user-initiated CSV download there, and inspect the deployed GitHub Pages URL after deployment. The local browser-driven checks are not a substitute for that review.
 - **Team input:** Add any additional team-run manual tests and results here. Do not claim deployment succeeded until the public site has been opened and verified.
 

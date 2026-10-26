@@ -24,6 +24,7 @@
   let state = loadState();
   let selectedMonth = currentMonth;
   let toastTimer;
+  let demoSignedIn = false;
 
   function toISODate(date) {
     const year = date.getFullYear();
@@ -262,6 +263,39 @@
     $('#budget-form').addEventListener('submit', saveBudgetFromForm);
     $('#goal-form').addEventListener('submit', saveGoalFromForm);
     $('#contribution-form').addEventListener('submit', saveContributionFromForm);
+    $('#login-form').addEventListener('submit', signInToDemo);
+    $('#sign-out').addEventListener('click', signOutOfDemo);
+  }
+
+  function signInToDemo(event) {
+    event.preventDefault();
+    const emailInput = $('#login-email');
+    const email = emailInput.value.trim();
+    if (!email || !emailInput.validity.valid) {
+      setText('#login-error', 'Enter a valid email address to continue to the demo.');
+      emailInput.focus();
+      return;
+    }
+    setText('#login-error', '');
+    emailInput.value = '';
+    try { sessionStorage.setItem('moneywise-demo-session', 'active'); } catch { /* The demo remains available for this page session. */ }
+    demoSignedIn = true;
+    $('#login-screen').hidden = true;
+    $('.app-shell').hidden = false;
+    history.replaceState(null, '', '#dashboard');
+    setView('dashboard');
+    window.requestAnimationFrame(renderCharts);
+  }
+
+  function signOutOfDemo() {
+    try { sessionStorage.removeItem('moneywise-demo-session'); } catch { /* In-memory sign-out still takes effect. */ }
+    demoSignedIn = false;
+    $('#login-form').reset();
+    setText('#login-error', '');
+    $('#login-screen').hidden = false;
+    $('.app-shell').hidden = true;
+    history.replaceState(null, '', '#login');
+    $('#login-email').focus();
   }
 
   function fillCategorySelect(select, categories, selected = '') {
@@ -884,7 +918,19 @@
 
   setupStaticControls();
   if (!$('#month-picker').options.length) setupMonthOptions();
-  const initialView = location.hash.slice(1);
+  const requestedView = location.hash.slice(1);
+  const initialView = requestedView === 'login' ? 'dashboard' : requestedView;
   setView(['dashboard', 'transactions', 'analytics', 'budgets', 'goals', 'coach'].includes(initialView) ? initialView : 'dashboard');
+  try { demoSignedIn = sessionStorage.getItem('moneywise-demo-session') === 'active'; } catch { demoSignedIn = false; }
+  if (demoSignedIn) {
+    $('#login-screen').hidden = true;
+    $('.app-shell').hidden = false;
+    history.replaceState(null, '', `#${['transactions', 'analytics', 'budgets', 'goals', 'coach'].includes(initialView) ? initialView : 'dashboard'}`);
+    window.requestAnimationFrame(renderCharts);
+  } else {
+    $('#login-screen').hidden = false;
+    $('.app-shell').hidden = true;
+    history.replaceState(null, '', '#login');
+  }
   if (storageWarning) showToast('Saved data could not be read or browser storage is unavailable. This session is temporary until storage works.', true);
 })();
