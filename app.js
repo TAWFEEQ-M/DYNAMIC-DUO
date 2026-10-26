@@ -21,10 +21,14 @@
   const monthFormat = new Intl.DateTimeFormat('en-IN', { month: 'short' });
   const monthLongFormat = new Intl.DateTimeFormat('en-IN', { month: 'long', year: 'numeric' });
   let storageWarning = false;
-  let state = loadState();
+  let activeStorageKey = STORAGE_KEY;
+  let activeEmail = '';
+  let state = loadState(STORAGE_KEY);
   let selectedMonth = currentMonth;
   let toastTimer;
   let demoSignedIn = false;
+  let statementRows = [];
+  let renderScheduled = false;
 
   function toISODate(date) {
     const year = date.getFullYear();
@@ -50,7 +54,12 @@
   }
 
   function validDate(value) {
-    return typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value) && !Number.isNaN(Date.parse(`${value}T00:00:00`));
+    if (typeof value !== 'string') return false;
+    const match = value.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    if (!match) return false;
+    const [, year, month, day] = match.map(Number);
+    const date = new Date(Date.UTC(year, month - 1, day));
+    return date.getUTCFullYear() === year && date.getUTCMonth() === month - 1 && date.getUTCDate() === day;
   }
 
   function uid() {
@@ -130,12 +139,12 @@
     return { id: typeof item.id === 'string' ? item.id : uid(), name, target: Math.round(target * 100) / 100, deadline: item.deadline, contributions, ...(item.sample === true ? { sample: true } : {}) };
   }
 
-  function loadState() {
+  function loadState(storageKey = activeStorageKey) {
     let raw;
-    try { raw = localStorage.getItem(STORAGE_KEY); } catch { storageWarning = true; return seedState(); }
+    try { raw = localStorage.getItem(storageKey); } catch { storageWarning = true; return storageKey === STORAGE_KEY ? seedState() : emptyState(); }
     if (raw === null) {
-      const initial = seedState();
-      try { localStorage.setItem(STORAGE_KEY, JSON.stringify(initial)); } catch { storageWarning = true; }
+      const initial = storageKey === STORAGE_KEY ? seedState() : emptyState();
+      try { localStorage.setItem(storageKey, JSON.stringify(initial)); } catch { storageWarning = true; }
       return initial;
     }
     try {
@@ -154,9 +163,17 @@
     }
   }
 
+  function emptyState() {
+    return { version: 1, transactions: [], budgets: [], goals: [], demo: false };
+  }
+
+  function profileStorageKey(email) {
+    return `moneywise-ai-profile-v1:${encodeURIComponent(email)}`;
+  }
+
   function saveState() {
     try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify({ version: 1, transactions: state.transactions, budgets: state.budgets, goals: state.goals, demo: state.demo }));
+      localStorage.setItem(activeStorageKey, JSON.stringify({ version: 1, transactions: state.transactions, budgets: state.budgets, goals: state.goals, demo: state.demo }));
       storageWarning = false;
     } catch {
       storageWarning = true;
@@ -264,7 +281,19 @@
     $('#goal-form').addEventListener('submit', saveGoalFromForm);
     $('#contribution-form').addEventListener('submit', saveContributionFromForm);
     $('#login-form').addEventListener('submit', signInToDemo);
+    $('#open-demo-workspace').addEventListener('click', openDemoWorkspace);
     $('#sign-out').addEventListener('click', signOutOfDemo);
+    $('#statement-file').addEventListener('change', handleStatementFile);
+    $('#statement-drop').addEventListener('dragover', (event) => { event.preventDefault(); $('#statement-drop').classList.add('drag-active'); });
+    $('#statement-drop').addEventListener('dragleave', () => $('#statement-drop').classList.remove('drag-active'));
+    $('#statement-drop').addEventListener('drop', (event) => {
+      event.preventDefault();
+      $('#statement-drop').classList.remove('drag-active');
+      processStatementFile(event.dataTransfer?.files?.[0]);
+    });
+    $('#select-all-statement-rows').addEventListener('change', toggleAllStatementRows);
+    $('#import-statement-rows').addEventListener('click', importStatementRows);
+    $('#clear-statement-review').addEventListener('click', clearStatementReview);
   }
 
   function signInToDemo(event) {
@@ -277,11 +306,32 @@
       return;
     }
     setText('#login-error', '');
-    emailInput.value = '';
-    try { sessionStorage.setItem('moneywise-demo-session', 'active'); } catch { /* The demo remains available for this page session. */ }
+    activeEmail = email.toLocaleLowerCase('en-US');
+    activeStorageKey = profileStorageKey(activeEmail);
+    state = loadState(activeStorageKey);
+    selectedMonth = currentMonth;
+    try { sessionStorage.setItem('moneywise-demo-session', activeEmail); } catch { /* The demo remains available for this page session. */ }
     demoSignedIn = true;
     $('#login-screen').hidden = true;
     $('.app-shell').hidden = false;
+    setupMonthOptions();
+    updateProfileLabel();
+    history.replaceState(null, '', '#dashboard');
+    setView('dashboard');
+    window.requestAnimationFrame(renderCharts);
+  }
+
+  function openDemoWorkspace() {
+    activeEmail = '';
+    activeStorageKey = STORAGE_KEY;
+    state = loadState(STORAGE_KEY);
+    selectedMonth = currentMonth;
+    try { sessionStorage.setItem('moneywise-demo-session', 'demo'); } catch { /* The demo remains available for this page session. */ }
+    demoSignedIn = true;
+    $('#login-screen').hidden = true;
+    $('.app-shell').hidden = false;
+    setupMonthOptions();
+    updateProfileLabel();
     history.replaceState(null, '', '#dashboard');
     setView('dashboard');
     window.requestAnimationFrame(renderCharts);
@@ -294,6 +344,8 @@
     setText('#login-error', '');
     $('#login-screen').hidden = false;
     $('.app-shell').hidden = true;
+    activeEmail = '';
+    activeStorageKey = STORAGE_KEY;
     history.replaceState(null, '', '#login');
     $('#login-email').focus();
   }
@@ -311,7 +363,7 @@
   }
 
   function setView(name) {
-    const validViews = ['dashboard', 'transactions', 'analytics', 'budgets', 'goals', 'coach'];
+    const validViews = ['dashboard', 'transactions', 'statements', 'analytics', 'budgets', 'goals', 'coach'];
     if (!validViews.includes(name)) return;
     $$('.view').forEach((view) => {
       const active = view.id === `view-${name}`;
@@ -319,7 +371,7 @@
       view.classList.toggle('active', active);
     });
     $$('.nav-link').forEach((link) => link.classList.toggle('active', link.dataset.view === name));
-    const titles = { dashboard: 'Overview', transactions: 'Transactions', analytics: 'Analytics', budgets: 'Budgets', goals: 'Savings goals', coach: 'Money coach' };
+    const titles = { dashboard: 'Overview', transactions: 'Transactions', statements: 'Statement import', analytics: 'Analytics', budgets: 'Budgets', goals: 'Savings goals', coach: 'Money coach' };
     setText('#page-breadcrumb', titles[name]);
     history.replaceState(null, '', `#${name}`);
     closeMobileMenu();
@@ -503,10 +555,23 @@
 
   function persistAndRender() {
     saveState();
-    renderAll();
+    scheduleRender();
+  }
+
+  function scheduleRender() {
+    if (renderScheduled) return;
+    renderScheduled = true;
+    requestAnimationFrame(() => {
+      renderScheduled = false;
+      renderAll();
+    });
   }
 
   function resetDemo() {
+    if (activeEmail) {
+      showToast('Demo reset only affects the shared demonstration workspace. Your private profile was left unchanged.', true);
+      return;
+    }
     const confirmed = window.confirm('Reset this browser workspace to the original MoneyWise demonstration data? All current transactions, budgets, and goals in this browser will be replaced.');
     if (!confirmed) return;
     state = seedState();
@@ -531,7 +596,7 @@
   function renderAll() {
     setText('#sample-badge', state.transactions.some((item) => item.sample) ? 'SAMPLE DATA' : 'YOUR DATA');
     $('#sample-badge').classList.toggle('user-data-pill', !state.transactions.some((item) => item.sample));
-    $('.profile-name small').textContent = storageWarning ? 'Storage needs attention' : state.transactions.some((item) => item.sample) ? 'Sample data included' : 'Your personal data';
+    updateProfileLabel();
     renderDashboard();
     renderTransactions();
     renderAnalytics();
@@ -541,8 +606,234 @@
     renderCharts();
   }
 
+  function scheduleUpdate() {
+    scheduleRender();
+  }
+
+  async function handleStatementFile(event) {
+    const file = event.target.files?.[0];
+    event.target.value = '';
+    processStatementFile(file);
+  }
+
+  async function processStatementFile(file) {
+    if (!file) return;
+    if (!file.name.toLocaleLowerCase('en-US').endsWith('.pdf') || (file.type && file.type !== 'application/pdf')) {
+      showStatementStatus('Choose a PDF file to continue.', true);
+      return;
+    }
+    if (file.size > 20 * 1024 * 1024) {
+      showStatementStatus('This file is larger than 20 MB. Choose a smaller statement PDF.', true);
+      return;
+    }
+    showStatementStatus('Reading statement locally…', false);
+    $('#statement-review').hidden = true;
+    try {
+      if (!globalThis.pdfjsLib) {
+        const pdfModule = await import('https://cdn.jsdelivr.net/npm/pdfjs-dist@5.4.624/legacy/build/pdf.mjs');
+        globalThis.pdfjsLib = pdfModule;
+      }
+      pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@5.4.624/legacy/build/pdf.worker.mjs';
+      const documentTask = pdfjsLib.getDocument({ data: await file.arrayBuffer() });
+      const pdf = await documentTask.promise;
+      if (pdf.numPages > 100) throw new Error('This statement has more than 100 pages. Split it into smaller PDFs and try again.');
+      const lines = [];
+      for (let pageNumber = 1; pageNumber <= pdf.numPages; pageNumber += 1) {
+        const page = await pdf.getPage(pageNumber);
+        const content = await page.getTextContent();
+        lines.push(...textItemsToLines(content.items));
+      }
+      statementRows = parseStatementLines(lines);
+      renderStatementPreview(file.name);
+      if (!statementRows.length) showStatementStatus('No transaction rows could be confidently extracted. This may be a scanned PDF or an unsupported statement layout; nothing was imported.', true);
+      else showStatementStatus(`Read ${statementRows.length} possible transaction${statementRows.length === 1 ? '' : 's'} from ${file.name}. Review the rows before importing.`, false);
+    } catch (error) {
+      statementRows = [];
+      renderStatementPreview(file.name);
+      showStatementStatus(error?.message || 'This PDF could not be read. It may be encrypted, damaged, or image-only.', true);
+    }
+  }
+
+  function textItemsToLines(items) {
+    const positioned = items.filter((item) => typeof item.str === 'string' && item.str.trim()).map((item) => ({
+      text: item.str.trim(), x: Number(item.transform?.[4]) || 0, y: Number(item.transform?.[5]) || 0
+    })).sort((a, b) => b.y - a.y || a.x - b.x);
+    const rows = [];
+    positioned.forEach((item) => {
+      let row = rows.find((candidate) => Math.abs(candidate.y - item.y) < 3);
+      if (!row) { row = { y: item.y, items: [] }; rows.push(row); }
+      row.items.push(item);
+    });
+    return rows.sort((a, b) => b.y - a.y).map((row) => row.items.sort((a, b) => a.x - b.x).map((item) => item.text).join(' ').replace(/\s+/g, ' ').trim());
+  }
+
+  function parseStatementDate(value) {
+    const clean = value.trim().replace(/[.]/g, '-').replace(/\//g, '-');
+    let match = clean.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
+    if (match) return `${match[1]}-${String(match[2]).padStart(2, '0')}-${String(match[3]).padStart(2, '0')}`;
+    match = clean.match(/^(\d{1,2})-(\d{1,2})-(\d{2,4})$/);
+    if (match) {
+      let year = Number(match[3]);
+      if (year < 100) year += year >= 70 ? 1900 : 2000;
+      const dayFirst = Number(match[1]);
+      const month = Number(match[2]);
+      return `${year}-${String(month).padStart(2, '0')}-${String(dayFirst).padStart(2, '0')}`;
+    }
+    match = value.match(/^(\d{1,2})[\s-]([A-Za-z]{3,})[\s-](\d{2,4})$/);
+    if (match) {
+      let year = Number(match[3]);
+      if (year < 100) year += year >= 70 ? 1900 : 2000;
+      const month = new Date(`${match[2]} 1, 2000`).getMonth() + 1;
+      return `${year}-${String(month).padStart(2, '0')}-${String(Number(match[1])).padStart(2, '0')}`;
+    }
+    return '';
+  }
+
+  function classifyStatementCategory(description, type) {
+    const text = description.toLocaleLowerCase('en-US');
+    if (type === 'income') {
+      if (/salary|payroll|wage/.test(text)) return 'Salary';
+      if (/freelance|consult|client/.test(text)) return 'Freelance';
+      if (/dividend|interest|mutual fund|investment/.test(text)) return 'Investment';
+      if (/gift|cashback|reward/.test(text)) return 'Gift';
+      if (/business|merchant settlement/.test(text)) return 'Business';
+      return 'Other';
+    }
+    if (/swiggy|zomato|restaurant|cafe|food|grocery|grocer|supermarket|blinkit|zepto/.test(text)) return 'Food';
+    if (/rent|housing|maintenance|property/.test(text)) return 'Housing';
+    if (/uber|ola|rapido|metro|fuel|petrol|parking|irctc|railway|bus/.test(text)) return 'Transport';
+    if (/amazon|flipkart|myntra|retail|shopping|store/.test(text)) return 'Shopping';
+    if (/electricity|water bill|internet|broadband|mobile recharge|utility|gas bill/.test(text)) return 'Bills';
+    if (/pharmacy|hospital|clinic|medical|health/.test(text)) return 'Health';
+    if (/netflix|spotify|cinema|movie|bookmyshow|prime video/.test(text)) return 'Entertainment';
+    if (/school|college|tuition|course|education/.test(text)) return 'Education';
+    if (/salon|personal care|grooming/.test(text)) return 'Personal care';
+    return 'Other';
+  }
+
+  function parseStatementLines(lines) {
+    const output = [];
+    const datePattern = /^(\d{4}-\d{1,2}-\d{1,2}|\d{1,2}[\/.\-]\d{1,2}[\/.\-]\d{2,4}|\d{1,2}[\s-][A-Za-z]{3,}[\s-]\d{2,4})\s+(.+)$/;
+    const amountPattern = /(?:₹\s*|INR\s*)?-?\d[\d,]*(?:\.\d{1,2})?\s*(?:CR|DR)?/gi;
+    lines.forEach((line) => {
+      const matched = line.trim().match(datePattern);
+      if (!matched || /opening balance|closing balance|brought forward|carried forward/i.test(line)) return;
+      const date = parseStatementDate(matched[1]);
+      if (!validDate(date)) return;
+      const remainder = matched[2];
+      const candidates = [...remainder.matchAll(amountPattern)].filter((match) => match[0].trim() && /\d/.test(match[0]));
+      const monetary = candidates.filter((match) => /₹|INR|[,.]\d{2}|\d,\d{3}/i.test(match[0]) || /\b(?:CR|DR)\b/i.test(match[0]));
+      const directed = monetary.filter((match) => /\b(?:CR|DR)\b/i.test(match[0]));
+      if (directed.length > 1 || (!directed.length && monetary.length !== 1)) return;
+      const chosen = directed[0] || monetary[0];
+      if (!chosen) return;
+      const amount = Number(chosen[0].replace(/[₹,\s]|INR|CR|DR|\(|\)/gi, '').replace(/^-/, ''));
+      if (!Number.isFinite(amount) || amount <= 0 || amount > MAX_AMOUNT) return;
+      let description = remainder.slice(0, chosen.index).replace(/\s+/g, ' ').trim();
+      if (!description) description = remainder.replace(chosen[0], '').replace(/\s+/g, ' ').trim();
+      description = description.replace(/\b\d{8,}\b/g, '[reference]').replace(/[|•]+/g, ' ').trim().slice(0, 70);
+      if (!description || /balance brought forward|statement summary/i.test(description)) return;
+      const type = /\bCR\b/i.test(chosen[0]) || /\b(?:credit|credited|salary|refund|cashback|deposit|interest received)\b/i.test(description) ? 'income' : 'expense';
+      output.push({ id: uid(), description, amount: Math.round(amount * 100) / 100, date, type, category: classifyStatementCategory(description, type), selected: true, source: 'statement' });
+    });
+    return output;
+  }
+
+  function renderStatementPreview(fileName) {
+    const tbody = $('#statement-preview-rows');
+    tbody.replaceChildren();
+    $('#statement-review').hidden = false;
+    $('#statement-empty').hidden = statementRows.length > 0;
+    $('.statement-table-panel .table-scroll').hidden = statementRows.length === 0;
+    setText('#statement-summary', `${fileName} · ${statementRows.length} rows · categories are suggestions; review each one.`);
+    statementRows.forEach((row, index) => {
+      const tableRow = document.createElement('tr');
+      const checkCell = document.createElement('td');
+      const checkbox = document.createElement('input'); checkbox.type = 'checkbox'; checkbox.checked = row.selected; checkbox.setAttribute('aria-label', `Import ${row.description}`); checkbox.addEventListener('change', () => { row.selected = checkbox.checked; updateImportButton(); }); checkCell.append(checkbox);
+      const descriptionCell = document.createElement('td'); const descriptionInput = document.createElement('input'); descriptionInput.className = 'statement-input statement-description'; descriptionInput.value = row.description; descriptionInput.maxLength = 70; descriptionInput.setAttribute('aria-label', `Description for row ${index + 1}`); descriptionInput.addEventListener('input', () => { row.description = descriptionInput.value; row.category = classifyStatementCategory(row.description, row.type); categorySelect.value = row.category; }); descriptionCell.append(descriptionInput);
+      const dateCell = document.createElement('td'); const dateInput = document.createElement('input'); dateInput.className = 'statement-input statement-date'; dateInput.type = 'date'; dateInput.value = row.date; dateInput.setAttribute('aria-label', `Date for row ${index + 1}`); dateInput.addEventListener('change', () => { row.date = dateInput.value; }); dateCell.append(dateInput);
+      const typeCell = document.createElement('td'); const typeSelect = document.createElement('select'); typeSelect.className = 'statement-select'; ['expense', 'income'].forEach((type) => addOption(typeSelect, type, type === 'income' ? 'Credit' : 'Debit')); typeSelect.value = row.type;
+      const categoryCell = document.createElement('td'); const categorySelect = document.createElement('select'); categorySelect.className = 'statement-select'; typeSelect.addEventListener('change', () => { row.type = typeSelect.value; fillCategorySelect(categorySelect, CATEGORIES[row.type], classifyStatementCategory(row.description, row.type)); row.category = categorySelect.value; }); fillCategorySelect(categorySelect, CATEGORIES[row.type], row.category); categorySelect.addEventListener('change', () => { row.category = categorySelect.value; }); typeCell.append(typeSelect); categoryCell.append(categorySelect);
+      const amountCell = document.createElement('td'); amountCell.className = 'amount-cell'; const amountInput = document.createElement('input'); amountInput.className = 'statement-input statement-amount'; amountInput.type = 'number'; amountInput.min = '0.01'; amountInput.max = String(MAX_AMOUNT); amountInput.step = '0.01'; amountInput.value = row.amount.toFixed(2); amountInput.inputMode = 'decimal'; amountInput.setAttribute('aria-label', `Amount for row ${index + 1}`); amountInput.addEventListener('input', () => { row.amount = Number(amountInput.value); }); amountCell.append(amountInput);
+      tableRow.append(checkCell, descriptionCell, dateCell, typeCell, categoryCell, amountCell); tbody.append(tableRow);
+    });
+    $('#select-all-statement-rows').checked = statementRows.length > 0;
+    updateImportButton();
+  }
+
+  function updateImportButton() {
+    $('#import-statement-rows').disabled = !statementRows.some((row) => row.selected);
+  }
+
+  function toggleAllStatementRows() {
+    const selected = $('#select-all-statement-rows').checked;
+    statementRows.forEach((row) => { row.selected = selected; });
+    $$('#statement-preview-rows input[type="checkbox"]').forEach((checkbox) => { checkbox.checked = selected; });
+    updateImportButton();
+  }
+
+  function clearStatementReview() {
+    statementRows = [];
+    $('#statement-review').hidden = true;
+    $('#statement-status').hidden = true;
+    $('#statement-file').value = '';
+  }
+
+  function showStatementStatus(message, isError) {
+    const status = $('#statement-status');
+    status.hidden = false;
+    status.textContent = message;
+    status.classList.toggle('error', isError);
+  }
+
+  function transactionFingerprint(transaction) {
+    return [transaction.date, transaction.type, Number(transaction.amount).toFixed(2), transaction.description.trim().toLocaleLowerCase('en-US').replace(/\s+/g, ' ')].join('|');
+  }
+
+  function importStatementRows() {
+    const selected = statementRows.filter((row) => row.selected);
+    if (!selected.length) { showStatementStatus('Select at least one transaction row to import.', true); return; }
+    const seen = new Set(state.transactions.map(transactionFingerprint));
+    let imported = 0;
+    let duplicates = 0;
+    let invalid = 0;
+    selected.forEach((row) => {
+      const description = row.description.trim().slice(0, 70);
+      const amount = Number(row.amount);
+      if (!description || !parseAmount(amount) || !validDate(row.date) || row.date > todayISO || !CATEGORIES[row.type]?.includes(row.category)) { invalid += 1; return; }
+      const record = { id: uid(), description, amount: Math.round(amount * 100) / 100, date: row.date, type: row.type, category: row.category };
+      const fingerprint = transactionFingerprint(record);
+      if (seen.has(fingerprint)) { duplicates += 1; return; }
+      seen.add(fingerprint);
+      state.transactions.push(record);
+      imported += 1;
+    });
+    if (imported) {
+      state.demo = state.transactions.some((item) => item.sample);
+      persistAndRender();
+    }
+    showStatementStatus(`${imported} imported · ${duplicates} duplicates skipped · ${invalid} invalid rows skipped.`, invalid > 0);
+    statementRows = statementRows.filter((row) => !row.selected);
+    renderStatementPreview('Import review');
+  }
+
+  function updateProfileLabel() {
+    const label = $('.profile-name');
+    if (!label) return;
+    const title = $('strong', label);
+    const detail = $('small', label);
+    title.textContent = activeEmail || 'Demo workspace';
+    detail.textContent = storageWarning ? 'Storage needs attention' : state.transactions.some((item) => item.sample) ? 'Sample data included' : 'Private local workspace';
+    $('.avatar').textContent = (activeEmail || 'D').slice(0, 1).toLocaleUpperCase('en-US');
+  }
+
   function renderDashboard() {
-    const totals = monthTotals();
+    const monthly = monthTransactions();
+    const totals = monthly.reduce((sum, record) => {
+      sum[record.type] += record.amount;
+      sum[`${record.type}Count`] += 1;
+      return sum;
+    }, { income: 0, expense: 0, incomeCount: 0, expenseCount: 0 });
     const flow = totals.income - totals.expense;
     const rate = totals.income > 0 ? (flow / totals.income) * 100 : 0;
     setText('#monthly-income', formatMoney(totals.income));
@@ -556,11 +847,11 @@
     rateTag.textContent = rate < 0 ? 'Spending exceeds income' : rate < 10 && totals.income > 0 ? 'Room to build' : 'Positive flow';
     rateTag.classList.toggle('coral', rate < 0);
     $('#cash-flow').classList.toggle('negative-value', flow < 0);
-    const recent = [...monthTransactions()].sort((a, b) => b.date.localeCompare(a.date) || b.id.localeCompare(a.id)).slice(0, 4);
+    const recent = [...monthly].sort((a, b) => b.date.localeCompare(a.date) || b.id.localeCompare(a.id)).slice(0, 4);
     renderRecentTransactions(recent);
-    renderBudgetPreview();
-    renderCategoryBreakdown();
-    renderDashboardInsight(totals, flow, rate);
+    renderBudgetPreview(monthly);
+    renderCategoryBreakdown(monthly);
+    renderDashboardInsight(totals, flow, rate, monthly);
   }
 
   function createTransactionLine(transaction) {
@@ -597,7 +888,7 @@
     records.forEach((record) => container.append(createTransactionLine(record)));
   }
 
-  function renderBudgetPreview() {
+  function renderBudgetPreview(monthly = monthTransactions()) {
     const container = $('#budget-preview');
     container.replaceChildren();
     const budgets = state.budgets.slice(0, 4);
@@ -608,7 +899,7 @@
       empty.append(add); container.append(empty); return;
     }
     budgets.forEach((budget) => {
-      const spent = monthTransactions().filter((record) => record.type === 'expense' && record.category === budget.category).reduce((sum, record) => sum + record.amount, 0);
+      const spent = monthly.filter((record) => record.type === 'expense' && record.category === budget.category).reduce((sum, record) => sum + record.amount, 0);
       const line = document.createElement('div');
       const top = document.createElement('div'); top.className = 'budget-line-top';
       const label = document.createElement('strong'); label.textContent = budget.category;
@@ -620,24 +911,28 @@
     });
   }
 
-  function renderCategoryBreakdown() {
-    const totals = categoryTotals();
-    const total = totals.reduce((sum, [, amount]) => sum + amount, 0);
+  function renderCategoryBreakdown(monthly = monthTransactions()) {
+    const totals = monthly.filter((record) => record.type === 'expense').reduce((map, record) => {
+      map.set(record.category, (map.get(record.category) || 0) + record.amount);
+      return map;
+    }, new Map());
+    const ordered = [...totals.entries()].sort((a, b) => b[1] - a[1]);
+    const total = ordered.reduce((sum, [, amount]) => sum + amount, 0);
     setText('#category-total', formatMoney(total));
     const container = $('#category-legend'); container.replaceChildren();
-    totals.slice(0, 4).forEach(([category, amount], index) => {
+    ordered.slice(0, 4).forEach(([category, amount], index) => {
       const row = document.createElement('div'); row.className = 'category-legend-item';
       const dot = document.createElement('i'); dot.className = 'legend-dot'; dot.style.background = CATEGORY_COLORS[index % CATEGORY_COLORS.length];
       const label = document.createElement('span'); label.textContent = category;
       const value = document.createElement('strong'); value.textContent = formatMoney(amount);
       row.append(dot, label, value); container.append(row);
     });
-    if (!totals.length) { const empty = document.createElement('span'); empty.className = 'chart-empty'; empty.textContent = 'No expenses this month'; container.append(empty); }
+    if (!ordered.length) { const empty = document.createElement('span'); empty.className = 'chart-empty'; empty.textContent = 'No expenses this month'; container.append(empty); }
   }
 
-  function renderDashboardInsight(totals, flow, rate) {
+  function renderDashboardInsight(totals, flow, rate, monthly = monthTransactions()) {
     let message;
-    const overspent = state.budgets.map((budget) => ({ ...budget, spent: monthTransactions().filter((item) => item.type === 'expense' && item.category === budget.category).reduce((sum, item) => sum + item.amount, 0) })).find((budget) => budget.spent > budget.amount);
+    const overspent = state.budgets.map((budget) => ({ ...budget, spent: monthly.filter((item) => item.type === 'expense' && item.category === budget.category).reduce((sum, item) => sum + item.amount, 0) })).find((budget) => budget.spent > budget.amount);
     if (overspent) message = `${overspent.category} is ${formatMoney(overspent.spent - overspent.amount)} over its ${formatMoney(overspent.amount)} monthly budget. A quick check-in could help keep the rest of the month balanced.`;
     else if (!totals.income && !totals.expense) message = 'There are no records for this month yet. Add transactions to see a useful monthly snapshot.';
     else if (flow < 0) message = `Expenses are ${formatMoney(Math.abs(flow))} above recorded income this month. Review your largest categories in Analytics.`;
@@ -733,11 +1028,12 @@
   }
 
   function renderBudgets() {
+    const monthly = monthTransactions();
     const totals = monthTotals();
     const spent = totals.expense;
     const planned = state.budgets.reduce((sum, item) => sum + item.amount, 0);
-    const remaining = planned - state.budgets.reduce((sum, budget) => sum + monthTransactions().filter((item) => item.type === 'expense' && item.category === budget.category).reduce((sub, item) => sub + item.amount, 0), 0);
-    const overspentCount = state.budgets.filter((budget) => monthTransactions().filter((item) => item.type === 'expense' && item.category === budget.category).reduce((sum, item) => sum + item.amount, 0) > budget.amount).length;
+    const remaining = planned - state.budgets.reduce((sum, budget) => sum + monthly.filter((item) => item.type === 'expense' && item.category === budget.category).reduce((sub, item) => sub + item.amount, 0), 0);
+    const overspentCount = state.budgets.filter((budget) => monthly.filter((item) => item.type === 'expense' && item.category === budget.category).reduce((sum, item) => sum + item.amount, 0) > budget.amount).length;
     const summary = $('#budget-summary'); summary.replaceChildren();
     [[`TOTAL PLANNED · ${formatMonth(selectedMonth)}`, formatMoney(planned)], ['TOTAL EXPENSES', formatMoney(spent)], [overspentCount ? `${overspentCount} CATEGORY OVER LIMIT` : 'BUDGET REMAINING', formatMoney(remaining)]].forEach(([label, value], index) => {
       const box = document.createElement('div'); box.className = 'summary-box'; const caption = document.createElement('span'); caption.textContent = label; const amount = document.createElement('strong'); amount.textContent = value; if (index === 2 && remaining < 0) amount.classList.add('negative'); box.append(caption, amount); summary.append(box);
@@ -745,7 +1041,7 @@
     const grid = $('#budget-grid'); grid.replaceChildren();
     if (!state.budgets.length) { const empty = document.createElement('div'); empty.className = 'budget-empty'; const title = document.createElement('strong'); title.textContent = 'Start with one category'; const copy = document.createElement('p'); copy.textContent = 'Choose a monthly amount for a category you want to keep an eye on.'; const button = document.createElement('button'); button.className = 'button button-primary button-small'; button.dataset.openDialog = 'budget-dialog'; button.textContent = '＋ Create a budget'; empty.append(title, copy, button); grid.append(empty); return; }
     state.budgets.forEach((budget) => {
-      const actual = monthTransactions().filter((item) => item.type === 'expense' && item.category === budget.category).reduce((sum, item) => sum + item.amount, 0);
+      const actual = monthly.filter((item) => item.type === 'expense' && item.category === budget.category).reduce((sum, item) => sum + item.amount, 0);
       const percent = actual / budget.amount * 100; const remainingAmount = budget.amount - actual;
       const card = document.createElement('article'); card.className = 'budget-card';
       const head = document.createElement('div'); head.className = 'budget-card-head';
@@ -783,9 +1079,10 @@
   }
 
   function renderCoach() {
+    const monthly = monthTransactions();
     const totals = monthTotals(); const flow = totals.income - totals.expense; const insights = [];
     state.budgets.forEach((budget) => {
-      const spent = monthTransactions().filter((item) => item.type === 'expense' && item.category === budget.category).reduce((sum, item) => sum + item.amount, 0);
+      const spent = monthly.filter((item) => item.type === 'expense' && item.category === budget.category).reduce((sum, item) => sum + item.amount, 0);
       if (spent > budget.amount) insights.push({ warning: true, icon: '!', label: 'BUDGET CHECK', title: `${budget.category} is over its limit`, body: `You recorded <strong>${formatMoney(spent)}</strong> against a <strong>${formatMoney(budget.amount)}</strong> monthly budget, exceeding it by <strong>${formatMoney(spent - budget.amount)}</strong>. Consider reviewing remaining ${budget.category.toLowerCase()} plans.` });
       else if (spent >= budget.amount * 0.8 && spent > 0) insights.push({ warning: false, icon: '↗', label: 'PACE CHECK', title: `${budget.category} is nearing its limit`, body: `You have used ${Math.round(spent / budget.amount * 100)}% of your <strong>${formatMoney(budget.amount)}</strong> ${budget.category.toLowerCase()} budget, with <strong>${formatMoney(budget.amount - spent)}</strong> remaining.` });
     });
@@ -907,7 +1204,7 @@
   }
 
   function handleStorageChange(event) {
-    if (event.key !== STORAGE_KEY || !event.newValue) return;
+    if (event.key !== activeStorageKey || !event.newValue) return;
     try {
       const parsed = JSON.parse(event.newValue);
       if (!Array.isArray(parsed.transactions) || !Array.isArray(parsed.budgets) || !Array.isArray(parsed.goals)) return;
@@ -920,12 +1217,22 @@
   if (!$('#month-picker').options.length) setupMonthOptions();
   const requestedView = location.hash.slice(1);
   const initialView = requestedView === 'login' ? 'dashboard' : requestedView;
-  setView(['dashboard', 'transactions', 'analytics', 'budgets', 'goals', 'coach'].includes(initialView) ? initialView : 'dashboard');
-  try { demoSignedIn = sessionStorage.getItem('moneywise-demo-session') === 'active'; } catch { demoSignedIn = false; }
+  setView(['dashboard', 'transactions', 'statements', 'analytics', 'budgets', 'goals', 'coach'].includes(initialView) ? initialView : 'dashboard');
+  try {
+    const savedEmail = sessionStorage.getItem('moneywise-demo-session');
+    demoSignedIn = savedEmail === 'demo' || (typeof savedEmail === 'string' && savedEmail.includes('@'));
+    if (demoSignedIn) {
+      activeEmail = savedEmail === 'demo' ? '' : savedEmail.toLocaleLowerCase('en-US');
+      activeStorageKey = activeEmail ? profileStorageKey(activeEmail) : STORAGE_KEY;
+      state = loadState(activeStorageKey);
+      setupMonthOptions();
+      updateProfileLabel();
+    }
+  } catch { demoSignedIn = false; }
   if (demoSignedIn) {
     $('#login-screen').hidden = true;
     $('.app-shell').hidden = false;
-    history.replaceState(null, '', `#${['transactions', 'analytics', 'budgets', 'goals', 'coach'].includes(initialView) ? initialView : 'dashboard'}`);
+    history.replaceState(null, '', `#${['transactions', 'statements', 'analytics', 'budgets', 'goals', 'coach'].includes(initialView) ? initialView : 'dashboard'}`);
     window.requestAnimationFrame(renderCharts);
   } else {
     $('#login-screen').hidden = false;

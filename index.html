@@ -8,7 +8,7 @@
   <title>MoneyWise AI | Personal finance, made clearer</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@500;600;700;800&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@500;600;700;800&family=Playfair+Display:wght@500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="styles.css">
   <script src="app.js" defer></script>
 </head>
@@ -44,7 +44,8 @@
           <p class="form-error login-error" id="login-error" role="alert"></p>
           <button class="button button-primary login-submit" type="submit">Continue to dashboard <span>→</span></button>
         </form>
-        <div class="login-demo-note"><span>DEMO ACCESS</span><p>This is a local demo gate, not account authentication. No password is requested, and your email is not saved or sent anywhere.</p></div>
+        <button class="demo-access-button" id="open-demo-workspace" type="button">Explore the shared demo workspace <span>↗</span></button>
+        <div class="login-demo-note"><span>LOCAL PROFILE ACCESS</span><p>No password is requested. Your email identifies this browser-only profile and is stored locally for separation; it is never sent to a server.</p></div>
         <div class="login-footnote"><span>NO BANK CONNECTION</span><i></i><span>NO PASSWORDS</span><i></i><span>NO CLOUD SYNC</span></div>
       </section>
     </div>
@@ -61,6 +62,7 @@
       <nav class="main-nav" aria-label="Main navigation">
         <button class="nav-link active" data-view="dashboard"><span class="nav-icon">◫</span>Overview</button>
         <button class="nav-link" data-view="transactions"><span class="nav-icon">⇄</span>Transactions</button>
+        <button class="nav-link" data-view="statements"><span class="nav-icon">▤</span>Statement import <span class="nav-new">PDF</span></button>
         <button class="nav-link" data-view="analytics"><span class="nav-icon">▥</span>Analytics</button>
         <button class="nav-link" data-view="budgets"><span class="nav-icon">◎</span>Budgets</button>
         <button class="nav-link" data-view="goals"><span class="nav-icon">◇</span>Savings goals</button>
@@ -81,6 +83,20 @@
       </header>
 
       <div class="content-wrap">
+        <section class="view" id="view-statements" aria-labelledby="statements-title" hidden>
+          <div class="page-heading compact-heading"><div><div class="eyebrow">PRIVATE DOCUMENT WORKSPACE</div><h1 id="statements-title">Statement import</h1><p>Extract, review, classify, then add selected transactions.</p></div><span class="local-indicator"><i></i> Parsed on this device</span></div>
+          <div class="statement-layout">
+            <article class="statement-upload-panel">
+              <div class="statement-panel-mark">▤</div><div class="statement-copy"><span class="panel-kicker">BANK STATEMENT · PDF</span><h2>Bring a statement into focus.</h2><p>Choose a text-based statement PDF. It is read in this browser and is not uploaded to MoneyWise or another service.</p></div>
+              <label class="statement-drop" id="statement-drop" for="statement-file"><span class="upload-symbol">↑</span><strong>Choose a PDF statement</strong><span>Up to 20 MB · text-based PDF</span><input id="statement-file" type="file" accept="application/pdf,.pdf"></label>
+              <div class="statement-security"><span>⌑</span><p><strong>Local processing only.</strong> Never upload a statement containing details you do not want stored in this browser. Remove or redact account numbers before selecting it.</p></div>
+            </article>
+            <aside class="statement-guidance"><span class="panel-kicker">HOW IMPORT WORKS</span><ol><li><span>01</span><div><strong>Read locally</strong><p>PDF text is extracted in your browser. No bank login or UPI credentials are requested.</p></div></li><li><span>02</span><div><strong>Review every row</strong><p>Date, direction, amount and category are editable before anything enters your ledger.</p></div></li><li><span>03</span><div><strong>Import once</strong><p>Exact matching rows already in this profile are skipped to help prevent duplicates.</p></div></li></ol><p class="statement-caveat">Scanned/image-only PDFs, password-protected files and unusual statement layouts may not parse. Always compare the preview with the original before importing.</p></aside>
+          </div>
+          <div class="statement-status" id="statement-status" role="status" aria-live="polite" hidden></div>
+          <section class="statement-review" id="statement-review" hidden><div class="statement-review-head"><div><span class="panel-kicker">CHECK BEFORE ADDING</span><h2>Extracted transactions</h2><p id="statement-summary"></p></div><div class="statement-review-actions"><button class="button button-outline" id="clear-statement-review" type="button">Discard preview</button><button class="button button-primary" id="import-statement-rows" type="button">Import selected</button></div></div><div class="table-panel statement-table-panel"><div class="table-scroll"><table><thead><tr><th><input id="select-all-statement-rows" type="checkbox" checked aria-label="Select all extracted transactions"></th><th>Description</th><th>Date</th><th>Type</th><th>Category</th><th class="align-right">Amount (₹)</th></tr></thead><tbody id="statement-preview-rows"></tbody></table></div><div class="empty-state" id="statement-empty" hidden><strong>No transaction rows found</strong><p>Try a text-based bank statement PDF with transaction details in selectable text.</p></div></div></section>
+        </section>
+
         <section class="view active" id="view-dashboard" aria-labelledby="dashboard-title">
           <div class="page-heading">
             <div><div class="eyebrow">MONDAY, <span id="today-date"></span><span class="heading-divider">/</span> MONTHLY SNAPSHOT</div><h1 id="dashboard-title">Your money, <em>in focus.</em></h1><p>A clearer view of what came in, what went out, and what's next.</p></div>

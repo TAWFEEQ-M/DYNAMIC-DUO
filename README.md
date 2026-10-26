@@ -22,7 +22,15 @@ People often have transaction records but lack a simple, understandable view of 
 
 MoneyWise AI turns manually entered transactions into a monthly dashboard, expense analytics, category budgets, savings-goal progress, and practical rule-based observations. The app does not connect to banks and does not call an AI service. All records are stored in the current browser's local storage and are not synchronized between devices. A sample dataset makes the first visit demonstrable; users can edit it or restore the original demo explicitly.
 
-The opening sign-in screen is a transparent demo gate, not real authentication. It accepts a valid email format to continue, requests no password, sends no request, and discards the email immediately. A tab-scoped session marker keeps the demo open across refresh in that tab; it is not an identity or security control. Sign out clears that marker and does not delete finance data.
+The opening sign-in screen is local profile selection, not real authentication. It accepts a valid email format, requests no password, and sends no request. The normalized email is stored in this browser to keep each profile separate; a tab-scoped session marker identifies the selected profile across refresh in that tab. There is no identity verification, encryption, or security boundary. Anyone using this browser profile can enter any email and access that email's local workspace. Sign out clears the tab marker and does not delete finance data. **Explore the shared demo workspace** opens the original sample data; personal profiles start empty and stay separate from that shared demo.
+
+### Statement PDF import
+
+The Statement import portal reads text-based PDFs in the browser with PDF.js 5.4.624. The pinned PDF.js module and worker are loaded from jsDelivr on first PDF import; an internet connection is needed for that step. The selected PDF bytes and extracted text are passed to the local PDF.js worker and are not uploaded by this app. PDF parsing is not perfectly reliable: scanned/image-only files, password-protected PDFs, bank-specific layouts, ambiguous rows, and formats with multiple amount columns may not be imported. The parser skips ambiguous monetary rows, proposes rule-based categories, and requires the user to review editable rows before import. It skips exact date/type/amount/description matches already in the active profile. Always compare the preview with the original bank statement; the original PDF is not retained by the app.
+
+### Google Pay limitation
+
+There is no real-time Google Pay transaction sync in this project. A static GitHub Pages website cannot inspect activity in another phone app, read payment notifications, or subscribe to a user's UPI transactions. Do not provide Google Pay, bank, UPI PIN, or account credentials to this demo. A genuine automated integration would need an officially supported, user-consented transaction data provider and a secure backend (or a separate, reviewed native Android integration); it cannot be safely implemented as browser-only JavaScript. Until such an integration is designed and authorized, add payments through the app's transaction form. Do not describe manual entries as automatic sync.
 
 This is a budgeting and educational prototype, not financial, tax, or investment advice. Cash flow calculated by the app is not a bank balance.
 
@@ -38,7 +46,9 @@ This is a budgeting and educational prototype, not financial, tax, or investment
 - First-launch sample data, visibly marked, with an explicit reset action. Existing saved data is not automatically replaced.
 - Responsive desktop, tablet, and mobile navigation and layouts.
 - Safe text rendering for user-entered descriptions and goal names.
-- No bank passwords, card credentials, backend, paid API, package install, or build step.
+- Browser-side PDF statement text extraction and editable transaction review, with suggested categories and exact duplicate checks.
+- Separate browser-local transaction, budget, and goal data for each entered email, plus a separate shared sample demo workspace.
+- No bank passwords, card credentials, backend, paid API, package install, or build step. The PDF reader module is a free, pinned third-party CDN dependency loaded only when importing a PDF.
 
 ## Technology Stack
 
@@ -46,7 +56,8 @@ This is a budgeting and educational prototype, not financial, tax, or investment
 - CSS3
 - Vanilla JavaScript (ES2020+ browser APIs)
 - Browser `localStorage`, Canvas 2D, native HTML dialogs, and Blob downloads
-- Google Fonts (DM Sans and Manrope) when online; the application itself has no runtime API dependency
+- Google Fonts (DM Sans, Manrope, and Playfair Display) when online
+- PDF.js 5.4.624 (legacy browser module and matching worker from jsDelivr, loaded only when a PDF is selected)
 
 ## Application Architecture
 
@@ -55,9 +66,11 @@ The application is deliberately small and static:
 - `index.html` contains the root page, views, accessible forms, and dialogs.
 - `styles.css` provides the responsive visual system and layouts.
 - `app.js` owns data validation, sample data, local persistence, calculations, view rendering, Canvas charts, CSV export, and rule-based coaching.
-- The sign-in screen is email-format validation plus a `sessionStorage` demo gate. It provides no account verification or access control. The login illustration is sample artwork, not account data.
+- `app.js` loads PDF.js on demand, extracts text locally, proposes transaction rows and categories, and imports only user-selected preview rows after validation and duplicate checks. Statement layout support is heuristic, not universal.
+- `moneywise-ai-v1` is reserved for the original shared sample demo. Email profiles use `moneywise-ai-profile-v1:<encoded-normalized-email>`, stored separately in this browser. The selected profile email is also retained in tab `sessionStorage` for refresh. These values are not encrypted, synced, or authenticated; email separation is an organizational convenience, not privacy protection from other users of the same browser profile.
+- The sign-in screen only validates email format and selects a local workspace. It provides no account verification or access control. The login illustration is sample artwork, not account data.
 
-The state is stored under the browser key `moneywise-ai-v1` as transactions, category budgets, savings goals and their contributions, and a sample-data flag. Stored records are normalized before use. If saved JSON is malformed, the app avoids replacing it automatically and starts a temporary empty session with a visible warning. Browser storage can be cleared by the user or browser, is local to one browser profile/device, and is not encrypted or synchronized. Do not enter sensitive credentials or treat this prototype as a secure financial record system.
+Each workspace's state is stored under its own browser key as transactions, category budgets, savings goals and their contributions, and a sample-data flag. Stored records are normalized before use. If saved JSON is malformed, the app avoids replacing it automatically and starts a temporary empty session with a visible warning. Browser storage can be cleared by the user or browser, is local to one browser profile/device, and is not encrypted or synchronized. Do not enter sensitive credentials or treat this prototype as a secure financial record system.
 
 Savings goal contributions live in each goal's contribution history and are excluded from transaction expense totals. Monthly summaries filter transactions by their `YYYY-MM` date; the transaction list and CSV export include all dates.
 
